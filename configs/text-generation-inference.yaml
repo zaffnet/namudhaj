@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llm
+  template:
+    metadata:
+      labels:
+        app: llm
+    spec:
+      containers:
+      - name: llm
+        image: ghcr.io/huggingface/text-generation-inference:1.2
+        resources:
+          requests:
+            memory: 18Gi
+          limits:
+            nvidia.com/gpu: "1"
+            memory: 20Gi
+        env:
+        - name: MODEL_ID
+          value: tiiuae/falcon-7b-instruct
+        # - name: NUM_SHARD
+        #   value: "2"
+        - name: PORT
+          value: "8080"
+        - name: QUANTIZE
+          value: eetq # bitsandbytes-nf4
+        - name: MAX_CONCURRENT_REQUESTS
+          value: 8
+        - name: HUGGING_FACE_HUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: llm-cluster
+              key: HUGGING_FACE_TOKEN
+        volumeMounts:
+          - mountPath: /dev/shm
+            name: dshm
+          - mountPath: /data
+            name: data
+      volumes:
+        - name: dshm
+          emptyDir:
+              medium: Memory
+              sizeLimit: 1Gi
+        - name: data
+          emptyDir: {}
+      nodeSelector:
+        cloud.google.com/gke-accelerator: nvidia-tesla-t4
+        # cloud.google.com/gke-ephemeral-storage-local-ssd: "true"
+        # cloud.google.com/gke-spot: "true"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-service
+spec:
+  selector:
+    app: llm
+  type: ClusterIP
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
