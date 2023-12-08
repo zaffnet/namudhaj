@@ -14,10 +14,20 @@ spec:
     spec:
       containers:
       - name: gradio
-        image: docker.io/zaffnet/namudhaj:prodv0.8
+        image: ${IMAGE_NAME}
         env:
           - name: MODEL_URL
             value: "http://sentiment-classification-service"
+          - name: OPENAI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: llm-cluster
+                key: OPENAI_API_KEY
+          - name: OPENAI_ORG_ID
+            valueFrom:
+              secretKeyRef:
+                name: llm-cluster
+                key: OPENAI_ORG_ID
         resources:
           requests:
             memory: "128Mi"
